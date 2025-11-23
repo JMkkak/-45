@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>交易奖励与成本计算器</title>
+    <title>交易奖励与成本计算器（支持本地保存）</title>
     <style>
         * {
             box-sizing: border-box;
@@ -70,15 +70,24 @@
         .btn-group {
             text-align: center;
             margin: 18px 0;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
         }
-        #resetBtn {
+        #resetBtn, #clearStorageBtn {
             padding: 10px 24px;
             border: none;
             border-radius: 8px;
-            background: #f56565;
-            color: #fff;
             font-size: 0.95rem;
             cursor: pointer;
+        }
+        #resetBtn {
+            background: #f56565;
+            color: #fff;
+        }
+        #clearStorageBtn {
+            background: #ed8936;
+            color: #fff;
         }
         .result-group {
             margin-top: 10px;
@@ -166,6 +175,9 @@
         body.dark-mode #resetBtn {
             background: #fc8181;
         }
+        body.dark-mode #clearStorageBtn {
+            background: #f6ad55;
+        }
 
         /* 响应式调整 */
         @media (max-width: 400px) {
@@ -185,6 +197,12 @@
                 min-width: 80px;
                 flex-basis: 45%; /* 在小屏幕上每行显示2个 */
             }
+            .btn-group {
+                flex-direction: column;
+            }
+            #resetBtn, #clearStorageBtn {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -194,7 +212,7 @@
             <button id="modeBtn">切换深色模式</button>
         </div>
 
-        <h1>交易奖励与成本计算器</h1>
+        <h1>交易奖励与成本计算器（支持本地保存）</h1>
         
         <!-- 输入区域 -->
         <div class="input-group">
@@ -219,31 +237,32 @@
             <input type="number" id="priceSlippage" placeholder="请输入交易差价磨损" step="0.01" min="0" value="100">
         </div>
 
-        <!-- 重置按钮 -->
+        <!-- 功能按钮组（重置 + 清除本地存储） -->
         <div class="btn-group">
             <button id="resetBtn">重置所有输入</button>
+            <button id="clearStorageBtn">清除本地保存</button>
         </div>
         
         <!-- 结果区域 -->
         <div class="result-group">
             <div class="result-item">
                 <div class="result-label">总奖励（USDT）</div>
-                <div class="result-value" id="totalReward">771.0000</div>
+                <div class="result-value" id="totalReward">0.0000</div>
             </div>
             <!-- 合并后的横板列：手续费、返佣金额、最终成本 -->
             <div class="result-item">
                 <div class="combined-result">
                     <div class="combined-item">
                         <div class="result-label">手续费（USDT）</div>
-                        <div class="result-value" id="serviceFee">750.0000</div>
+                        <div class="result-value" id="serviceFee">0.0000</div>
                     </div>
                     <div class="combined-item">
                         <div class="result-label">返佣金额（USDT）</div>
-                        <div class="result-value" id="rebateAmount">300.0000</div>
+                        <div class="result-value" id="rebateAmount">0.0000</div>
                     </div>
                     <div class="combined-item">
                         <div class="result-label">最终成本（USDT）</div>
-                        <div class="result-value" id="finalCost">450.0000</div>
+                        <div class="result-value" id="finalCost">0.0000</div>
                     </div>
                 </div>
             </div>
@@ -252,22 +271,22 @@
                 <div class="combined-result">
                     <div class="combined-item">
                         <div class="result-label">利润（USDT）</div>
-                        <div class="result-value profit-positive" id="profit">321.0000</div>
+                        <div class="result-value" id="profit">0.0000</div>
                     </div>
                     <div class="combined-item">
                         <div class="result-label">交易差价磨损（USDT）</div>
-                        <div class="result-value" id="slippageValue">100.0000</div>
+                        <div class="result-value" id="slippageValue">0.0000</div>
                     </div>
                     <div class="combined-item">
                         <div class="result-label">真实利润（USDT）</div>
-                        <div class="result-value profit-positive" id="realProfit">221.0000</div>
+                        <div class="result-value" id="realProfit">0.0000</div>
                     </div>
                 </div>
             </div>
             <!-- 需要空的奖励数量 -->
             <div class="result-item">
                 <div class="result-label">需要空的奖励数量（个）</div>
-                <div class="result-value" id="emptyRewardAmount">12345.6789</div>
+                <div class="result-value" id="emptyRewardAmount">0.0000</div>
             </div>
         </div>
     </div>
@@ -290,9 +309,64 @@
         const emptyRewardAmount = document.getElementById('emptyRewardAmount');
         const modeBtn = document.getElementById('modeBtn');
         const resetBtn = document.getElementById('resetBtn');
+        const clearStorageBtn = document.getElementById('clearStorageBtn');
         const body = document.body;
 
-        // 计算逻辑
+        // 本地存储相关配置
+        const STORAGE_KEY = 'tradeCalculatorData'; // 存储键名
+
+        // 1. 从本地存储加载数据
+        function loadFromStorage() {
+            const storedData = localStorage.getItem(STORAGE_KEY);
+            if (storedData) {
+                try {
+                    const data = JSON.parse(storedData);
+                    // 填充输入框
+                    personalVolume.value = data.personalVolume || '';
+                    totalVolume.value = data.totalVolume || '';
+                    totalToken.value = data.totalToken || '';
+                    tokenPrice.value = data.tokenPrice || '';
+                    priceSlippage.value = data.priceSlippage || 100;
+                    // 重新计算并更新结果
+                    calculate();
+                } catch (e) {
+                    console.error('加载本地存储失败：', e);
+                    clearStorage(); // 存储数据损坏时清除
+                }
+            }
+        }
+
+        // 2. 保存数据到本地存储
+        function saveToStorage() {
+            const data = {
+                personalVolume: personalVolume.value.trim(),
+                totalVolume: totalVolume.value.trim(),
+                totalToken: totalToken.value.trim(),
+                tokenPrice: tokenPrice.value.trim(),
+                priceSlippage: priceSlippage.value.trim() || 100
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        // 3. 清除本地存储
+        function clearStorage() {
+            localStorage.removeItem(STORAGE_KEY);
+            alert('本地保存的数据已清除！');
+            // 重置输入和结果
+            inputs.forEach(input => input.value = '');
+            totalReward.textContent = '0.0000';
+            serviceFee.textContent = '0.0000';
+            rebateAmount.textContent = '0.0000';
+            finalCost.textContent = '0.0000';
+            profit.textContent = '0.0000';
+            slippageValue.textContent = '0.0000';
+            realProfit.textContent = '0.0000';
+            emptyRewardAmount.textContent = '0.0000';
+            profit.classList.remove('profit-positive', 'profit-negative');
+            realProfit.classList.remove('profit-positive', 'profit-negative');
+        }
+
+        // 计算逻辑（保持原逻辑不变）
         function calculate() {
             const pv = (parseFloat(personalVolume.value) || 0) * 10000;
             const tv = (parseFloat(totalVolume.value) || 0.01) * 100000000;
@@ -335,35 +409,10 @@
                 realProfit.classList.add('profit-negative');
                 realProfit.classList.remove('profit-positive');
             }
+
+            // 计算后自动保存数据
+            saveToStorage();
         }
 
-        // 深色模式切换
-        modeBtn.addEventListener('click', () => {
-            body.classList.toggle('dark-mode');
-            modeBtn.textContent = body.classList.contains('dark-mode') ? '切换浅色模式' : '切换深色模式';
-        });
-
-        // 重置功能
-        resetBtn.addEventListener('click', () => {
-            inputs.forEach(input => input.value = '');
-            totalReward.textContent = '0.0000';
-            serviceFee.textContent = '0.0000';
-            rebateAmount.textContent = '0.0000';
-            finalCost.textContent = '0.0000';
-            profit.textContent = '0.0000';
-            slippageValue.textContent = '0.0000';
-            realProfit.textContent = '0.0000';
-            emptyRewardAmount.textContent = '0.0000';
-            profit.classList.remove('profit-positive', 'profit-negative');
-            realProfit.classList.remove('profit-positive', 'profit-negative');
-        });
-
-        // 实时计算
-        inputs.forEach(input => input.addEventListener('input', calculate));
-        
-        // 初始化计算
-        calculate();
-    </script>
-</body>
-</html>
-    
+        // 深色模式切换（保持原逻辑不变）
+        modeBtn.addEventListener('click',
