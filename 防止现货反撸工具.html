@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易奖励与成本计算器</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        body {
+            background-color: #f9f9f9;
+            padding: 10px 0;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 18px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        }
+        .mode-switch {
+            text-align: right;
+            margin-bottom: 12px;
+        }
+        #modeBtn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 20px;
+            background: #4285f4;
+            color: #fff;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        h1 {
+            text-align: center;
+            color: #2d3748;
+            margin-bottom: 18px;
+            font-size: 1.35rem;
+        }
+        .input-group {
+            margin-bottom: 14px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #4a5568;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background: #f7fafc;
+            color: #2d3748;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4285f4;
+            box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+        }
+        .btn-group {
+            text-align: center;
+            margin: 18px 0;
+        }
+        #resetBtn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            background: #f56565;
+            color: #fff;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .result-group {
+            margin-top: 10px;
+            padding-top: 14px;
+            border-top: 2px solid #edf2f7;
+        }
+        .result-item {
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+        /* 横板排列样式 */
+        .combined-result {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .combined-item {
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+        }
+        .result-label {
+            color: #718096;
+            margin-bottom: 3px;
+            font-size: 0.9rem;
+            text-align: center; /* 标签居中显示 */
+        }
+        .result-value {
+            color: #2d3748;
+            font-size: 1.05rem;
+            font-weight: bold;
+            text-align: center; /* 数值居中显示 */
+        }
+        .profit-positive {
+            color: #38a169;
+        }
+        .profit-negative {
+            color: #e53e3e;
+        }
+
+        /* 深色模式样式 */
+        body.dark-mode {
+            background-color: #1a202c;
+        }
+        body.dark-mode .container {
+            background: #2d3748;
+        }
+        body.dark-mode h1 {
+            color: #f7fafc;
+        }
+        body.dark-mode label {
+            color: #e2e8f0;
+        }
+        body.dark-mode input {
+            background: #4a5568;
+            border-color: #2d3748;
+            color: #f7fafc;
+        }
+        body.dark-mode input:focus {
+            border-color: #63b3ed;
+            box-shadow: 0 0 0 2px rgba(99, 179, 237, 0.3);
+        }
+        body.dark-mode .result-item {
+            background: #4a5568;
+        }
+        body.dark-mode .result-label {
+            color: #cbd5e0;
+        }
+        body.dark-mode .result-value {
+            color: #f7fafc;
+        }
+        body.dark-mode .profit-positive {
+            color: #68d391;
+        }
+        body.dark-mode .profit-negative {
+            color: #fc8181;
+        }
+        body.dark-mode #modeBtn {
+            background: #63b3ed;
+        }
+        body.dark-mode #resetBtn {
+            background: #fc8181;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 400px) {
+            .container {
+                padding: 12px;
+            }
+            h1 {
+                font-size: 1.2rem;
+            }
+            .result-item {
+                padding: 8px 10px;
+            }
+            .result-value {
+                font-size: 1rem;
+            }
+            .combined-item {
+                min-width: 80px;
+                flex-basis: 45%; /* 在小屏幕上每行显示2个 */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="mode-switch">
+            <button id="modeBtn">切换深色模式</button>
+        </div>
+
+        <h1>交易奖励与成本计算器</h1>
+        
+        <!-- 输入区域 -->
+        <div class="input-group">
+            <label for="personalVolume">个人交易量（W USDT）</label>
+            <input type="number" id="personalVolume" placeholder="请输入个人交易量（单位：W）" step="0.01" min="0">
+        </div>
+        <div class="input-group">
+            <label for="totalVolume">总交易量（亿 USDT）</label>
+            <input type="number" id="totalVolume" placeholder="请输入总交易量（单位：亿）" step="0.01" min="0.01">
+        </div>
+        <div class="input-group">
+            <label for="totalToken">总发放代币数量（W 个）</label>
+            <input type="number" id="totalToken" placeholder="请输入总发放代币数（单位：W）" step="0.0001" min="0">
+        </div>
+        <div class="input-group">
+            <label for="tokenPrice">代币当前价格（USDT/个）</label>
+            <input type="number" id="tokenPrice" placeholder="请输入代币当前价格" step="0.0001" min="0">
+        </div>
+        <!-- 交易差价磨损输入项 -->
+        <div class="input-group">
+            <label for="priceSlippage">交易差价磨损（USDT）</label>
+            <input type="number" id="priceSlippage" placeholder="请输入交易差价磨损" step="0.01" min="0" value="100">
+        </div>
+
+        <!-- 重置按钮 -->
+        <div class="btn-group">
+            <button id="resetBtn">重置所有输入</button>
+        </div>
+        
+        <!-- 结果区域 -->
+        <div class="result-group">
+            <div class="result-item">
+                <div class="result-label">总奖励（USDT）</div>
+                <div class="result-value" id="totalReward">771.0000</div>
+            </div>
+            <!-- 合并后的横板列：手续费、返佣金额、最终成本 -->
+            <div class="result-item">
+                <div class="combined-result">
+                    <div class="combined-item">
+                        <div class="result-label">手续费（USDT）</div>
+                        <div class="result-value" id="serviceFee">750.0000</div>
+                    </div>
+                    <div class="combined-item">
+                        <div class="result-label">返佣金额（USDT）</div>
+                        <div class="result-value" id="rebateAmount">300.0000</div>
+                    </div>
+                    <div class="combined-item">
+                        <div class="result-label">最终成本（USDT）</div>
+                        <div class="result-value" id="finalCost">450.0000</div>
+                    </div>
+                </div>
+            </div>
+            <!-- 合并后的横板列：利润、交易差价磨损、真实利润 -->
+            <div class="result-item">
+                <div class="combined-result">
+                    <div class="combined-item">
+                        <div class="result-label">利润（USDT）</div>
+                        <div class="result-value profit-positive" id="profit">321.0000</div>
+                    </div>
+                    <div class="combined-item">
+                        <div class="result-label">交易差价磨损（USDT）</div>
+                        <div class="result-value" id="slippageValue">100.0000</div>
+                    </div>
+                    <div class="combined-item">
+                        <div class="result-label">真实利润（USDT）</div>
+                        <div class="result-value profit-positive" id="realProfit">221.0000</div>
+                    </div>
+                </div>
+            </div>
+            <!-- 需要空的奖励数量 -->
+            <div class="result-item">
+                <div class="result-label">需要空的奖励数量（个）</div>
+                <div class="result-value" id="emptyRewardAmount">12345.6789</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 获取元素
+        const inputs = document.querySelectorAll('input');
+        const personalVolume = document.getElementById('personalVolume');
+        const totalVolume = document.getElementById('totalVolume');
+        const totalToken = document.getElementById('totalToken');
+        const tokenPrice = document.getElementById('tokenPrice');
+        const priceSlippage = document.getElementById('priceSlippage');
+        const totalReward = document.getElementById('totalReward');
+        const serviceFee = document.getElementById('serviceFee');
+        const rebateAmount = document.getElementById('rebateAmount');
+        const finalCost = document.getElementById('finalCost');
+        const profit = document.getElementById('profit');
+        const slippageValue = document.getElementById('slippageValue');
+        const realProfit = document.getElementById('realProfit');
+        const emptyRewardAmount = document.getElementById('emptyRewardAmount');
+        const modeBtn = document.getElementById('modeBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const body = document.body;
+
+        // 计算逻辑
+        function calculate() {
+            const pv = (parseFloat(personalVolume.value) || 0) * 10000;
+            const tv = (parseFloat(totalVolume.value) || 0.01) * 100000000;
+            const tt = (parseFloat(totalToken.value) || 0) * 10000;
+            const tp = parseFloat(tokenPrice.value) || 0;
+            const slippage = parseFloat(priceSlippage.value) || 0;
+
+            const reward = (pv / tv) * tt * tp;
+            const fee = pv * 0.00075;
+            const rebate = fee * 0.4;
+            const cost = fee - rebate;
+            const profitValue = reward - cost;
+            const emptyReward = (pv / tv) * tt;
+            const realProfitValue = profitValue - slippage;
+
+            // 更新显示值
+            totalReward.textContent = reward.toFixed(4);
+            serviceFee.textContent = fee.toFixed(4);
+            rebateAmount.textContent = rebate.toFixed(4);
+            finalCost.textContent = cost.toFixed(4);
+            profit.textContent = profitValue.toFixed(4);
+            slippageValue.textContent = slippage.toFixed(4);
+            realProfit.textContent = realProfitValue.toFixed(4);
+            emptyRewardAmount.textContent = emptyReward.toFixed(4);
+
+            // 设置利润颜色
+            if (profitValue >= 0) {
+                profit.classList.add('profit-positive');
+                profit.classList.remove('profit-negative');
+            } else {
+                profit.classList.add('profit-negative');
+                profit.classList.remove('profit-positive');
+            }
+
+            // 设置真实利润颜色
+            if (realProfitValue >= 0) {
+                realProfit.classList.add('profit-positive');
+                realProfit.classList.remove('profit-negative');
+            } else {
+                realProfit.classList.add('profit-negative');
+                realProfit.classList.remove('profit-positive');
+            }
+        }
+
+        // 深色模式切换
+        modeBtn.addEventListener('click', () => {
+            body.classList.toggle('dark-mode');
+            modeBtn.textContent = body.classList.contains('dark-mode') ? '切换浅色模式' : '切换深色模式';
+        });
+
+        // 重置功能
+        resetBtn.addEventListener('click', () => {
+            inputs.forEach(input => input.value = '');
+            totalReward.textContent = '0.0000';
+            serviceFee.textContent = '0.0000';
+            rebateAmount.textContent = '0.0000';
+            finalCost.textContent = '0.0000';
+            profit.textContent = '0.0000';
+            slippageValue.textContent = '0.0000';
+            realProfit.textContent = '0.0000';
+            emptyRewardAmount.textContent = '0.0000';
+            profit.classList.remove('profit-positive', 'profit-negative');
+            realProfit.classList.remove('profit-positive', 'profit-negative');
+        });
+
+        // 实时计算
+        inputs.forEach(input => input.addEventListener('input', calculate));
+        
+        // 初始化计算
+        calculate();
+    </script>
+</body>
+</html>
+    
